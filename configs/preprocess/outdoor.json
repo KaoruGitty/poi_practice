@@ -1,0 +1,17 @@
+{
+  "max_range": 50.0,
+  "min_range": 1.0,
+  "range_origin": [0.0, 0.0, 0.0],
+  "drop_no_return": true,
+  "sensor_rotation": [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0],
+  "sensor_translation": [0.0, 0.0, 1.8],
+  "z_min": -0.5,
+  "z_max": 4.0,
+  "voxel_size": 0.05,
+  "max_points": 60000,
+  "sampling": "random",
+  "coord_scale_xy": 0.02,
+  "coord_scale_z": 0.25,
+  "extra_channels": ["intensity"],
+  "extra_scales": [0.00392156862745098]
+}
