@@ -1,4 +1,9 @@
-numpy>=1.26
+# JetPack 6.x 想定: Python 3.10 / CUDA 12.x / torch>=2.2
+# Jetson では PyPI の aarch64 torch は CPU のみになりやすいので、
+# CUDA 付き wheel を先に入れる（例: JetPack 6.2 / CUDA 12.6）:
+#   pip install torch --index-url https://pypi.jetson-ai-lab.io/jp6/cu126
+# CUDA 12.8 / 12.9 のときは jp6/cu128 や jp6/cu129 に読み替える。
+numpy>=1.26,<3
 torch>=2.2
 matplotlib>=3.8
 pillow>=10
