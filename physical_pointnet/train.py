@@ -106,7 +106,12 @@ def train(args: argparse.Namespace) -> None:
     amp_dtype = None
     if args.amp and device.type == "cuda":
         amp_dtype = torch.bfloat16 if torch.cuda.is_bf16_supported() else torch.float16
-    scaler = torch.amp.GradScaler(device.type, enabled=amp_dtype == torch.float16)
+    # torch 2.4+ は torch.amp.GradScaler(device_type)。それ以前は cuda.amp。
+    use_fp16_scaler = amp_dtype == torch.float16
+    try:
+        scaler = torch.amp.GradScaler(device.type, enabled=use_fp16_scaler)
+    except (TypeError, AttributeError):
+        scaler = torch.cuda.amp.GradScaler(enabled=use_fp16_scaler)
     out = Path(args.out)
     out.mkdir(parents=True, exist_ok=True)
 

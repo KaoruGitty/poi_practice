@@ -1,10 +1,17 @@
 #!/usr/bin/env bash
 # 教師データの収集、ずれの追加収集、学習、閉ループ評価。
+# JetPack 6.x 想定: Python 3.10 / CUDA 12.x。
 set -euo pipefail
 cd "$(dirname "$0")/.."
-PY="${PYTHON:-python3.13}"
+PY="${PYTHON:-python3.10}"
 if [[ ! -x .venv/bin/python ]]; then
   "$PY" -m venv .venv
+  .venv/bin/pip install --upgrade pip
+  # Jetson (aarch64 + L4T) では CUDA 付き torch を Jetson AI Lab から入れる。
+  if [[ "$(uname -m)" == "aarch64" && -f /etc/nv_tegra_release ]]; then
+    CUDA_INDEX="${JETSON_TORCH_INDEX:-https://pypi.jetson-ai-lab.io/jp6/cu126}"
+    .venv/bin/pip install torch --index-url "$CUDA_INDEX"
+  fi
   .venv/bin/pip install -r requirements.txt
 fi
 export PYTHONUNBUFFERED=1

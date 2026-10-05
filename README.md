@@ -20,11 +20,18 @@
 
 ## 準備
 
+想定環境は **JetPack 6.x**（Ubuntu 22.04 / **Python 3.10** / **CUDA 12.x**）です。PyTorch は **2.2 以上**（Jetson AI Lab の jp6 向け wheel を推奨）。
+
 ```bash
-python3.13 -m venv .venv
+python3.10 -m venv .venv
+.venv/bin/pip install --upgrade pip
+# Jetson では先に CUDA 付き torch を入れる（JetPack 6.2 / CUDA 12.6 の例）
+.venv/bin/pip install torch --index-url https://pypi.jetson-ai-lab.io/jp6/cu126
 .venv/bin/pip install -r requirements.txt
 export MPLCONFIGDIR="$(pwd)/.mplconfig"
 ```
+
+CUDA のマイナーが違うときは index を合わせます（例: CUDA 12.8 → `jp6/cu128`、12.9 → `jp6/cu129`）。デスクトップや CPU だけの環境では、torch の行を省いて `pip install -r requirements.txt` だけで構いません。`scripts/prepare.sh` は Jetson を検出すると同じ index から torch を入れます（上書きは `JETSON_TORCH_INDEX`）。
 
 教師データの収集、学習、閉ループの順です。
 
