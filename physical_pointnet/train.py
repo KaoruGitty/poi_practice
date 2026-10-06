@@ -43,9 +43,14 @@ def run_epoch(model, loader, optimizer, device, omega_weight: float, amp_dtype, 
         points = points.to(device)
         status = status.to(device, non_blocking=True)
         action = action.to(device, non_blocking=True)
-        autocast = (
-            torch.autocast(device_type=device.type, dtype=amp_dtype) if amp_dtype is not None else contextlib.nullcontext()
-        )
+        if amp_dtype is not None:
+            # PyTorch 2.1 では cuda.amp.autocast。2.4+ の torch.amp.autocast も試す。
+            try:
+                autocast = torch.autocast(device_type=device.type, dtype=amp_dtype)
+            except (TypeError, AttributeError):
+                autocast = torch.cuda.amp.autocast(dtype=amp_dtype)
+        else:
+            autocast = contextlib.nullcontext()
         with autocast:
             pred = model(points, status)
         err = pred.float() - action
@@ -105,8 +110,15 @@ def train(args: argparse.Namespace) -> None:
     optimizer = torch.optim.AdamW(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
     amp_dtype = None
     if args.amp and device.type == "cuda":
-        amp_dtype = torch.bfloat16 if torch.cuda.is_bf16_supported() else torch.float16
-    scaler = torch.amp.GradScaler(device.type, enabled=amp_dtype == torch.float16)
+        # is_bf16_supported は 1.12+。無ければ fp16 に倒す。
+        bf16_ok = bool(getattr(torch.cuda, "is_bf16_supported", lambda: False)())
+        amp_dtype = torch.bfloat16 if bf16_ok else torch.float16
+    # PyTorch 2.1 は torch.cuda.amp.GradScaler。2.4+ の amp.GradScaler(device) にも対応。
+    use_fp16_scaler = amp_dtype == torch.float16
+    try:
+        scaler = torch.amp.GradScaler(device.type, enabled=use_fp16_scaler)
+    except (TypeError, AttributeError):
+        scaler = torch.cuda.amp.GradScaler(enabled=use_fp16_scaler)
     out = Path(args.out)
     out.mkdir(parents=True, exist_ok=True)
 

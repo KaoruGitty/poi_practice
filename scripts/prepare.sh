@@ -1,10 +1,12 @@
 #!/usr/bin/env bash
 # 教師データの収集、ずれの追加収集、学習、閉ループ評価。
+# Python 3.8 / PyTorch 2.1.0 向け。
 set -euo pipefail
 cd "$(dirname "$0")/.."
-PY="${PYTHON:-python3.13}"
+PY="${PYTHON:-python3.8}"
 if [[ ! -x .venv/bin/python ]]; then
   "$PY" -m venv .venv
+  .venv/bin/pip install --upgrade "pip<25" "setuptools<70" wheel
   .venv/bin/pip install -r requirements.txt
 fi
 export PYTHONUNBUFFERED=1

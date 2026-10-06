@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import List
+
 import argparse
 import json
 from pathlib import Path
@@ -33,11 +35,11 @@ def collect(
         from .evaluate import load_policy
 
         policy, cfg = load_policy(ckpt)
-    points: list[np.ndarray] = []
-    status: list[np.ndarray] = []
-    action: list[np.ndarray] = []
-    episode_id: list[np.ndarray] = []
-    map_id: list[np.ndarray] = []
+    points: List[np.ndarray] = []
+    status: List[np.ndarray] = []
+    action: List[np.ndarray] = []
+    episode_id: List[np.ndarray] = []
+    map_id: List[np.ndarray] = []
     kept = 0
     successes = 0
     attempts = 0
