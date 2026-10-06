@@ -1,7 +1,5 @@
 """シミュレータと観測のスケール。収集・学習・評価で共有する。"""
 
-from __future__ import annotations
-
 from typing import Tuple
 
 from dataclasses import asdict, dataclass

@@ -1,7 +1,5 @@
 """室内ナビゲーション用の地図。低い障害物は水平スキャンでは見えない。"""
 
-from __future__ import annotations
-
 from typing import List, Tuple
 
 from dataclasses import dataclass

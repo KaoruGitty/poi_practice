@@ -20,16 +20,18 @@
 
 ## 準備
 
-このブランチは **Python 3.8** と **PyTorch 2.1.0** 向けです。型注釈は `typing.Optional` / `Union` / `List` / `Dict` など 3.8 互換の書き方に揃えています。
+このブランチは **Python 3.6** / **PyTorch 1.10.0** / **CUDA 10.2** 向けです。型注釈は `typing` モジュール、`dataclasses` は backport、注意は素の matmul 実装です。
 
 ```bash
-python3.8 -m venv .venv
-.venv/bin/pip install --upgrade "pip<25" "setuptools<70" wheel
+python3.6 -m venv .venv
+.venv/bin/pip install --upgrade "pip<22" "setuptools<60" wheel
+# CUDA 10.2 付き torch（CPU のみならこの行は不要）
+.venv/bin/pip install torch==1.10.0+cu102 -f https://download.pytorch.org/whl/cu102/torch_stable.html
 .venv/bin/pip install -r requirements.txt
 export MPLCONFIGDIR="$(pwd)/.mplconfig"
 ```
 
-CUDA 付きで入れる場合は、環境に合う `torch==2.1.0` の wheel を先に入れてから残りを入れます（例: [PyTorch 2.1 の公式手順](https://pytorch.org/get-started/previous-versions/#v210)）。Jetson では L4T / JetPack に対応した 2.1.0 wheel を使ってください。
+`scripts/prepare.sh` も同じ前提で venv を作ります。CPU だけのときは `pip install torch==1.10.0` のあと `requirements.txt` を入れてください。
 
 教師データの収集、学習、閉ループの順です。
 

@@ -5,8 +5,6 @@
 点数は毎回変わってよい。バッチにするときは points.PointBatch で縦につなぐ。
 """
 
-from __future__ import annotations
-
 from typing import Optional, Tuple
 
 from dataclasses import asdict, dataclass

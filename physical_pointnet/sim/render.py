@@ -1,7 +1,5 @@
 """上面図のフレーム。LiDARは高さで色を分ける。"""
 
-from __future__ import annotations
-
 from typing import List, Tuple
 
 import math

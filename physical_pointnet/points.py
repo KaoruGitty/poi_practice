@@ -5,8 +5,6 @@
 CUDA 実装に差し替える。
 """
 
-from __future__ import annotations
-
 from typing import Union, List, Tuple
 
 from dataclasses import dataclass

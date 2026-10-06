@@ -1,7 +1,5 @@
 """教師デモの保存と読み込み。エピソード単位で学習と検証を分ける。"""
 
-from __future__ import annotations
-
 from typing import Optional, Union, Dict, List, Tuple
 
 from pathlib import Path

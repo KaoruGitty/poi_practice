@@ -1,7 +1,5 @@
 """1エピソードを進める。教師にも学習済み方針にも使う。"""
 
-from __future__ import annotations
-
 from typing import Optional, List, Tuple
 
 from dataclasses import dataclass, field

@@ -1,6 +1,8 @@
-# Python 3.8 / PyTorch 2.1.0 向け
-# numpy 1.25+ と matplotlib 3.8+ は Python 3.9 以降専用のため上限を付ける。
-numpy>=1.21,<1.25
-torch==2.1.0
-matplotlib>=3.5,<3.8
-pillow>=9.0,<11
+# Python 3.6 / PyTorch 1.10.0 / CUDA 10.2 向け
+# torch は CUDA 10.2 wheel を先に入れる（README / prepare.sh 参照）。
+#   pip install torch==1.10.0+cu102 -f https://download.pytorch.org/whl/cu102/torch_stable.html
+# dataclasses は標準庫が 3.7+ のため backport を入れる。
+dataclasses>=0.8; python_version<"3.7"
+numpy>=1.17,<1.20
+matplotlib>=3.1,<3.4
+pillow>=7.0,<9

@@ -1,7 +1,5 @@
 """古典プランナを走らせ、成功したエピソードだけを保存する。"""
 
-from __future__ import annotations
-
 from typing import List
 
 import argparse

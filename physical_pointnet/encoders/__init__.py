@@ -1,7 +1,5 @@
 """点群エンコーダの登録。名前で選び、設定は辞書でそのまま渡す。"""
 
-from __future__ import annotations
-
 from typing import Dict, Type
 
 from .base import PointEncoder

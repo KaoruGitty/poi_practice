@@ -1,7 +1,5 @@
 """ナビゲーション環境。観測は多層LiDAR点群と身体状態。"""
 
-from __future__ import annotations
-
 from typing import Optional, Tuple
 
 import math

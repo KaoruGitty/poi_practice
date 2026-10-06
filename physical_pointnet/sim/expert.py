@@ -5,8 +5,6 @@
 経路が引けないときだけ、見出し角をサンプルする局所回避に戻す。
 """
 
-from __future__ import annotations
-
 from typing import Optional, Dict, List, Tuple
 
 import heapq

@@ -5,8 +5,6 @@
 学習済みの重みは使わない。重みが関わる図（max の様子）は乱数で初期化したネットワークの値。
 """
 
-from __future__ import annotations
-
 from typing import Optional, List, Tuple
 
 import sys

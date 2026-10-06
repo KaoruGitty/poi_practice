@@ -1,7 +1,5 @@
 """状態と行動のスケール。学習と閉ループで同じ式を使う。点群の前処理は preprocess.py。"""
 
-from __future__ import annotations
-
 from typing import Tuple
 
 import math

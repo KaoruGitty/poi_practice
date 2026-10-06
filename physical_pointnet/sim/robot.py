@@ -1,7 +1,5 @@
 """加速度制限つきの差動二輪。現在速度が次の動きを決める。"""
 
-from __future__ import annotations
-
 from typing import List, Tuple
 
 import math

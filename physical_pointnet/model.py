@@ -7,8 +7,6 @@
 エンコーダは名前と設定の辞書で選ぶ。状態の枝と回帰ヘッドはどのエンコーダでも共通。
 """
 
-from __future__ import annotations
-
 from typing import Optional, Union, List, Tuple
 
 from dataclasses import asdict, dataclass, field

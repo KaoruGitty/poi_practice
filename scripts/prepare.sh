@@ -1,12 +1,16 @@
 #!/usr/bin/env bash
 # 教師データの収集、ずれの追加収集、学習、閉ループ評価。
-# Python 3.8 / PyTorch 2.1.0 向け。
+# Python 3.6 / PyTorch 1.10.0 / CUDA 10.2 向け。
 set -euo pipefail
 cd "$(dirname "$0")/.."
-PY="${PYTHON:-python3.8}"
+PY="${PYTHON:-python3.6}"
 if [[ ! -x .venv/bin/python ]]; then
   "$PY" -m venv .venv
-  .venv/bin/pip install --upgrade "pip<25" "setuptools<70" wheel
+  .venv/bin/pip install --upgrade "pip<22" "setuptools<60" wheel
+  # CUDA 10.2 付き torch 1.10.0（上書きは TORCH_INDEX / TORCH_FIND_LINKS）
+  TORCH_FIND_LINKS="${TORCH_FIND_LINKS:-https://download.pytorch.org/whl/cu102/torch_stable.html}"
+  .venv/bin/pip install torch==1.10.0+cu102 -f "$TORCH_FIND_LINKS" || \
+    .venv/bin/pip install torch==1.10.0
   .venv/bin/pip install -r requirements.txt
 fi
 export PYTHONUNBUFFERED=1

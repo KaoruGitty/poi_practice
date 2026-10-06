@@ -3,8 +3,6 @@
 半径はメートルで指定する。点数はサンプルごとに違ってよい。
 """
 
-from __future__ import annotations
-
 from typing import Union, List, Tuple
 
 import torch

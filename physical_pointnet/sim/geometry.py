@@ -1,7 +1,5 @@
 """軸平行ボックスに対するレイキャストと円衝突。"""
 
-from __future__ import annotations
-
 from typing import Optional, List, Tuple
 
 import math

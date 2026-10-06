@@ -1,7 +1,5 @@
 """学習済み方針、または教師をシミュレータで走らせる。"""
 
-from __future__ import annotations
-
 from typing import Optional, List, Tuple
 
 import argparse

@@ -11,10 +11,8 @@
 5. 最後の段の点をサンプルごとにまとめて 1 本のベクトルにする。
 
 分割用のデコーダは持たない。疎な畳み込みは sparse_conv.SubMConv3d（PyTorch だけ）で、
-注意は torch.nn.functional.scaled_dot_product_attention（CUDA では flash attention が使われる）。
+注意は素の scaled dot-product（PyTorch 1.10 向け。2.0+ の scaled_dot_product_attention は使わない）。
 """
-
-from __future__ import annotations
 
 from typing import Dict, List, Tuple
 
@@ -26,6 +24,16 @@ from ..points import PointBatch, global_pool, pooled_width, segment_reduce
 from .base import PointEncoder
 from .serialization import ORDERS, grid_depth, serialize
 from .sparse_conv import SubMConv3d, neighbor_table
+
+
+def _scaled_dot_product_attention(q, k, v, dropout_p=0.0):
+    """F.scaled_dot_product_attention の代替（torch 1.10 互換）。"""
+    scale = q.shape[-1] ** -0.5
+    attn = torch.matmul(q, k.transpose(-2, -1)) * scale
+    attn = torch.softmax(attn, dim=-1)
+    if dropout_p > 0.0:
+        attn = F.dropout(attn, p=dropout_p)
+    return torch.matmul(attn, v)
 
 
 class _Stage:
@@ -100,7 +108,8 @@ class _SerializedAttention(nn.Module):
         channels = feat.shape[1]
         qkv = self.qkv(feat[gather]).reshape(-1, k, 3, self.num_heads, channels // self.num_heads)
         q, key, v = qkv.permute(2, 0, 3, 1, 4).unbind(0)
-        out = F.scaled_dot_product_attention(q, key, v, dropout_p=self.attn_drop if self.training else 0.0)
+        drop = self.attn_drop if self.training else 0.0
+        out = _scaled_dot_product_attention(q, key, v, dropout_p=drop)
         out = out.transpose(1, 2).reshape(-1, channels)[back]
         return self.proj_drop(self.proj(out))
 

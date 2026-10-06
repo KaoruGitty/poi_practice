@@ -4,8 +4,6 @@
 spconv の SubMConv3d と同じ計算を PyTorch だけで行う。
 """
 
-from __future__ import annotations
-
 import math
 
 import torch
@@ -19,7 +17,12 @@ def neighbor_table(grid: torch.Tensor, batch: torch.Tensor, kernel_size: int) ->
     """
     r = kernel_size // 2
     steps = torch.arange(-r, r + 1, device=grid.device)
-    offsets = torch.stack(torch.meshgrid(steps, steps, steps, indexing="ij"), dim=-1).reshape(-1, 3)
+    # torch 1.10 は indexing= を受け付ける。それより古い環境向けにフォールバックする。
+    try:
+        grids = torch.meshgrid(steps, steps, steps, indexing="ij")
+    except TypeError:
+        grids = torch.meshgrid(steps, steps, steps)
+    offsets = torch.stack(grids, dim=-1).reshape(-1, 3)
     shifted = grid + r
     size = int(shifted.max()) + r + 1
 
