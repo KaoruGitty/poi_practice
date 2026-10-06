@@ -11,10 +11,10 @@
 5. 最後の段の点をサンプルごとにまとめて 1 本のベクトルにする。
 
 分割用のデコーダは持たない。疎な畳み込みは sparse_conv.SubMConv3d（PyTorch だけ）で、
-注意は torch.nn.functional.scaled_dot_product_attention（CUDA では flash attention が使われる）。
+注意は素の scaled dot-product（PyTorch 1.10 向け。2.0+ の scaled_dot_product_attention は使わない）。
 """
 
-from __future__ import annotations
+from typing import Dict, List, Tuple
 
 import torch
 import torch.nn.functional as F
@@ -26,25 +26,35 @@ from .serialization import ORDERS, grid_depth, serialize
 from .sparse_conv import SubMConv3d, neighbor_table
 
 
+def _scaled_dot_product_attention(q, k, v, dropout_p=0.0):
+    """F.scaled_dot_product_attention の代替（torch 1.10 互換）。"""
+    scale = q.shape[-1] ** -0.5
+    attn = torch.matmul(q, k.transpose(-2, -1)) * scale
+    attn = torch.softmax(attn, dim=-1)
+    if dropout_p > 0.0:
+        attn = F.dropout(attn, p=dropout_p)
+    return torch.matmul(attn, v)
+
+
 class _Stage:
     """1 段の中で共有する、ボクセル座標、直列化の並び、近傍表、区画の番号。"""
 
-    def __init__(self, grid: torch.Tensor, batch: torch.Tensor, batch_size: int, orders: list[str]):
+    def __init__(self, grid: torch.Tensor, batch: torch.Tensor, batch_size: int, orders: List[str]):
         self.grid = grid
         self.batch = batch
         self.batch_size = batch_size
         self.counts = torch.bincount(batch, minlength=batch_size)
         depth = grid_depth(grid)
         self.perms = [serialize(grid, batch, order, depth).argsort() for order in orders]
-        self._tables: dict[int, torch.Tensor] = {}
-        self._patches: dict[tuple[int, int], tuple[torch.Tensor, torch.Tensor, int]] = {}
+        self._tables: Dict[int, torch.Tensor] = {}
+        self._patches: Dict[Tuple[int, int], Tuple[torch.Tensor, torch.Tensor, int]] = {}
 
     def table(self, kernel_size: int) -> torch.Tensor:
         if kernel_size not in self._tables:
             self._tables[kernel_size] = neighbor_table(self.grid, self.batch, kernel_size)
         return self._tables[kernel_size]
 
-    def patches(self, order_index: int, patch_size: int) -> tuple[torch.Tensor, torch.Tensor, int]:
+    def patches(self, order_index: int, patch_size: int) -> Tuple[torch.Tensor, torch.Tensor, int]:
         """区画に並べるための番号を返す。
 
         区画の大きさはバッチ内の最小点数を超えないようにする。各サンプルの点数を区画の
@@ -98,7 +108,8 @@ class _SerializedAttention(nn.Module):
         channels = feat.shape[1]
         qkv = self.qkv(feat[gather]).reshape(-1, k, 3, self.num_heads, channels // self.num_heads)
         q, key, v = qkv.permute(2, 0, 3, 1, 4).unbind(0)
-        out = F.scaled_dot_product_attention(q, key, v, dropout_p=self.attn_drop if self.training else 0.0)
+        drop = self.attn_drop if self.training else 0.0
+        out = _scaled_dot_product_attention(q, key, v, dropout_p=drop)
         out = out.transpose(1, 2).reshape(-1, channels)[back]
         return self.proj_drop(self.proj(out))
 
@@ -142,7 +153,7 @@ class _Block(nn.Module):
 
 def _merge_voxels(
     grid: torch.Tensor, batch: torch.Tensor, coord: torch.Tensor, feat: torch.Tensor, reduce: str
-) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
+) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
     """同じサンプルの同じボクセルに入る点を 1 つにまとめる。結果はサンプル番号の昇順に並ぶ。"""
     size = int(grid.max()) + 1
     key = ((batch * size + grid[:, 0]) * size + grid[:, 1]) * size + grid[:, 2]
@@ -178,13 +189,13 @@ class PTv3Encoder(PointEncoder):
         self,
         in_channels: int,
         grid_size: float = 0.1,
-        orders: tuple[str, ...] = ORDERS,
+        orders: Tuple[str, ...] = ORDERS,
         shuffle_orders: bool = True,
-        stride: tuple[int, ...] = (2, 2, 2),
-        enc_depths: tuple[int, ...] = (1, 1, 1, 1),
-        enc_channels: tuple[int, ...] = (32, 64, 128, 256),
-        enc_num_head: tuple[int, ...] = (2, 4, 8, 16),
-        enc_patch_size: tuple[int, ...] = (64, 64, 64, 64),
+        stride: Tuple[int, ...] = (2, 2, 2),
+        enc_depths: Tuple[int, ...] = (1, 1, 1, 1),
+        enc_channels: Tuple[int, ...] = (32, 64, 128, 256),
+        enc_num_head: Tuple[int, ...] = (2, 4, 8, 16),
+        enc_patch_size: Tuple[int, ...] = (64, 64, 64, 64),
         mlp_ratio: float = 4.0,
         qkv_bias: bool = True,
         attn_drop: float = 0.0,
@@ -234,7 +245,7 @@ class PTv3Encoder(PointEncoder):
             self.stages.append(blocks)
         self.out_channels = pooled_width(enc_channels[-1], pool)
 
-    def _stage_orders(self) -> list[str]:
+    def _stage_orders(self) -> List[str]:
         if self.training and self.shuffle_orders:
             return [self.orders[i] for i in torch.randperm(len(self.orders)).tolist()]
         return list(self.orders)

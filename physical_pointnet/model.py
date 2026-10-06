@@ -7,7 +7,7 @@
 エンコーダは名前と設定の辞書で選ぶ。状態の枝と回帰ヘッドはどのエンコーダでも共通。
 """
 
-from __future__ import annotations
+from typing import Optional, Union, List, Tuple
 
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
@@ -22,7 +22,6 @@ from .preprocess import PreprocessConfig
 
 CHECKPOINT_VERSION = 2
 
-
 @dataclass
 class ModelConfig:
     encoder: str = "pointnet2"
@@ -30,8 +29,8 @@ class ModelConfig:
     in_channels: int = 3
     status_dim: int = 5
     use_status: bool = True
-    status_hidden: tuple[int, ...] = (64, 64)
-    head_hidden: tuple[int, ...] = (128,)
+    status_hidden: Tuple[int, ...] = (64, 64)
+    head_hidden: Tuple[int, ...] = (128,)
     dropout: float = 0.2
     out_dim: int = 2
 
@@ -46,20 +45,18 @@ class ModelConfig:
                 data[key] = tuple(data[key])
         return ModelConfig(**data)
 
-
-def _mlp(channels: list[int], dropout: float = 0.0) -> nn.Sequential:
-    layers: list[nn.Module] = []
+def _mlp(channels: List[int], dropout: float = 0.0) -> nn.Sequential:
+    layers: List[nn.Module] = []
     for cin, cout in zip(channels, channels[1:]):
         layers += [nn.Linear(cin, cout), nn.ReLU(inplace=True)]
         if dropout > 0:
             layers.append(nn.Dropout(dropout))
     return nn.Sequential(*layers)
 
-
 class StatusEncoder(nn.Module):
     """身体状態（速度、目標位置など）をベクトルにする。"""
 
-    def __init__(self, status_dim: int, hidden: tuple[int, ...]):
+    def __init__(self, status_dim: int, hidden: Tuple[int, ...]):
         super().__init__()
         self.net = _mlp([status_dim, *hidden])
         self.out_channels = hidden[-1] if hidden else status_dim
@@ -67,11 +64,10 @@ class StatusEncoder(nn.Module):
     def forward(self, status: torch.Tensor) -> torch.Tensor:
         return self.net(status)
 
-
 class RegressionHead(nn.Module):
     """連結したベクトルから連続値を出す。最後の層に活性化は付けない。"""
 
-    def __init__(self, in_channels: int, hidden: tuple[int, ...], out_dim: int, dropout: float):
+    def __init__(self, in_channels: int, hidden: Tuple[int, ...], out_dim: int, dropout: float):
         super().__init__()
         self.body = _mlp([in_channels, *hidden], dropout)
         self.out = nn.Linear(hidden[-1] if hidden else in_channels, out_dim)
@@ -79,9 +75,8 @@ class RegressionHead(nn.Module):
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         return self.out(self.body(x))
 
-
 class PolicyModel(nn.Module):
-    def __init__(self, encoder: nn.Module, status_encoder: StatusEncoder | None, head: RegressionHead):
+    def __init__(self, encoder: nn.Module, status_encoder: Optional[StatusEncoder], head: RegressionHead):
         super().__init__()
         self.encoder = encoder
         self.status_encoder = status_encoder
@@ -93,7 +88,6 @@ class PolicyModel(nn.Module):
             z = torch.cat([z, self.status_encoder(status).to(z.dtype)], dim=1)
         return self.head(z)
 
-
 def build_model(cfg: ModelConfig) -> PolicyModel:
     encoder = build_encoder(cfg.encoder, cfg.in_channels, **cfg.encoder_kwargs)
     status_encoder = StatusEncoder(cfg.status_dim, cfg.status_hidden) if cfg.use_status else None
@@ -101,9 +95,8 @@ def build_model(cfg: ModelConfig) -> PolicyModel:
     head = RegressionHead(width, cfg.head_hidden, cfg.out_dim, cfg.dropout)
     return PolicyModel(encoder, status_encoder, head)
 
-
 def save_checkpoint(
-    path: str | Path,
+    path: Union[str, Path],
     model: PolicyModel,
     model_cfg: ModelConfig,
     preprocess_cfg: PreprocessConfig,
@@ -122,10 +115,9 @@ def save_checkpoint(
         path,
     )
 
-
 def load_checkpoint(
-    path: str | Path, map_location: str | torch.device = "cpu"
-) -> tuple[PolicyModel, ModelConfig, PreprocessConfig, SimConfig, dict]:
+    path: Union[str, Path], map_location: Union[str, torch.device] = "cpu"
+) -> Tuple[PolicyModel, ModelConfig, PreprocessConfig, SimConfig, dict]:
     try:
         ckpt = torch.load(path, map_location=map_location, weights_only=False)
     except TypeError:

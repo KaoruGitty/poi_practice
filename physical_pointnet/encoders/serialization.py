@@ -1,7 +1,5 @@
 """PTv3 の直列化。ボクセル座標を空間充填曲線の番号に変え、近い点が近い順番に並ぶようにする。"""
 
-from __future__ import annotations
-
 import torch
 
 ORDERS = ("z", "z-trans", "hilbert", "hilbert-trans")

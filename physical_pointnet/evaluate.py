@@ -1,6 +1,6 @@
 """学習済み方針、または教師をシミュレータで走らせる。"""
 
-from __future__ import annotations
+from typing import Optional, List, Tuple
 
 import argparse
 import json
@@ -20,8 +20,7 @@ from .sim.expert import expert_action
 from .sim.maps import all_maps
 from .sim.render import render_frame, save_gif
 
-
-def summarize(results: list[EpisodeResult]) -> dict:
+def summarize(results: List[EpisodeResult]) -> dict:
     n = max(len(results), 1)
     return {
         "episodes": len(results),
@@ -32,9 +31,8 @@ def summarize(results: list[EpisodeResult]) -> dict:
         "mean_final_dist": float(np.mean([r.final_dist for r in results])) if results else 0.0,
     }
 
-
 def model_action(model, preprocess_cfg: PreprocessConfig, cfg: SimConfig, device: torch.device):
-    def act(env: NavEnv) -> tuple[float, float]:
+    def act(env: NavEnv) -> Tuple[float, float]:
         points, status = env.observe()
         coord, feat, _ = preprocess_scan(points, preprocess_cfg)
         batch = PointBatch.from_arrays([coord], [feat]).to(device)
@@ -44,13 +42,11 @@ def model_action(model, preprocess_cfg: PreprocessConfig, cfg: SimConfig, device
 
     return act
 
-
-def load_policy(ckpt_path: str, device: torch.device | None = None):
+def load_policy(ckpt_path: str, device: Optional[torch.device] = None):
     model, _, preprocess_cfg, cfg, _ = load_checkpoint(ckpt_path)
     device = device or torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model.to(device)
     return model_action(model, preprocess_cfg, cfg, device), cfg
-
 
 def evaluate(args: argparse.Namespace) -> dict:
     maps = all_maps()
@@ -103,7 +99,6 @@ def evaluate(args: argparse.Namespace) -> dict:
         path.write_text(json.dumps(summary, ensure_ascii=False, indent=2), encoding="utf-8")
     return summary
 
-
 def main() -> None:
     parser = argparse.ArgumentParser(description="シミュレータ上でロボットを走らせて評価する")
     parser.add_argument("--ckpt", default="")
@@ -114,7 +109,6 @@ def main() -> None:
     parser.add_argument("--metrics", default="")
     args = parser.parse_args()
     evaluate(args)
-
 
 if __name__ == "__main__":
     main()

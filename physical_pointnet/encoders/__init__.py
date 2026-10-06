@@ -1,12 +1,12 @@
 """点群エンコーダの登録。名前で選び、設定は辞書でそのまま渡す。"""
 
-from __future__ import annotations
+from typing import Dict, Type
 
 from .base import PointEncoder
 from .pointnet2 import PointNet2Encoder
 from .ptv3 import PTv3Encoder
 
-ENCODERS: dict[str, type[PointEncoder]] = {
+ENCODERS: Dict[str, Type[PointEncoder]] = {
     "pointnet2": PointNet2Encoder,
     "ptv3": PTv3Encoder,
 }

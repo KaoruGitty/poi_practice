@@ -5,7 +5,7 @@
 点数は毎回変わってよい。バッチにするときは points.PointBatch で縦につなぐ。
 """
 
-from __future__ import annotations
+from typing import Optional, Tuple
 
 from dataclasses import asdict, dataclass
 
@@ -15,18 +15,17 @@ from .config import SimConfig
 
 _NO_RETURN_TOL = 1e-4
 
-
 @dataclass(frozen=True)
 class PreprocessConfig:
     # 距離はすべて range_origin（入力座標でのセンサ位置）からの 3 次元距離。
     max_range: float = 8.0
     min_range: float = 0.0
-    range_origin: tuple[float, float, float] = (0.0, 0.0, 0.0)
+    range_origin: Tuple[float, float, float] = (0.0, 0.0, 0.0)
     # 距離が max_range ちょうどの点を「返ってこなかったビーム」として落とす。
     drop_no_return: bool = True
     # 入力座標からロボット座標への変換。回転は行優先の 3x3。
-    sensor_rotation: tuple[float, ...] = (1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0)
-    sensor_translation: tuple[float, float, float] = (0.0, 0.0, 0.0)
+    sensor_rotation: Tuple[float, ...] = (1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0)
+    sensor_translation: Tuple[float, float, float] = (0.0, 0.0, 0.0)
     # ロボット座標での高さの範囲。
     z_min: float = -1.0
     z_max: float = 3.0
@@ -38,8 +37,8 @@ class PreprocessConfig:
     # 特徴に入れる座標の倍率。値が 1 前後に収まるようにする。
     coord_scale_xy: float = 1.0 / 8.0
     coord_scale_z: float = 0.5
-    extra_channels: tuple[str, ...] = ()
-    extra_scales: tuple[float, ...] = ()
+    extra_channels: Tuple[str, ...] = ()
+    extra_scales: Tuple[float, ...] = ()
 
     def __post_init__(self) -> None:
         if len(self.extra_channels) != len(self.extra_scales):
@@ -74,7 +73,6 @@ class PreprocessConfig:
             coord_scale_z=1.0 / cfg.z_scale,
         )
 
-
 @dataclass(frozen=True)
 class AugmentConfig:
     """学習時だけの増強。推論では使わない。"""
@@ -88,8 +86,7 @@ class AugmentConfig:
     def to_dict(self) -> dict:
         return asdict(self)
 
-
-def voxel_downsample(xyz: np.ndarray, voxel: float, rng: np.random.Generator | None) -> np.ndarray:
+def voxel_downsample(xyz: np.ndarray, voxel: float, rng: Optional[np.random.Generator]) -> np.ndarray:
     """ボクセルごとに 1 点の番号を返す。rng があればランダム、なければボクセル中心に最も近い点。"""
     keys = np.floor(xyz / voxel).astype(np.int64)
     _, inverse = np.unique(keys, axis=0, return_inverse=True)
@@ -103,8 +100,7 @@ def voxel_downsample(xyz: np.ndarray, voxel: float, rng: np.random.Generator | N
     first = np.r_[True, grouped[1:] != grouped[:-1]]
     return np.sort(order[first])
 
-
-def farthest_point_indices(xyz: np.ndarray, n: int, rng: np.random.Generator | None) -> np.ndarray:
+def farthest_point_indices(xyz: np.ndarray, n: int, rng: Optional[np.random.Generator]) -> np.ndarray:
     idx = np.empty(n, dtype=np.int64)
     dist = np.full(len(xyz), np.inf)
     idx[0] = int(rng.integers(len(xyz))) if rng is not None else 0
@@ -113,13 +109,12 @@ def farthest_point_indices(xyz: np.ndarray, n: int, rng: np.random.Generator | N
         idx[i] = int(dist.argmax())
     return np.sort(idx)
 
-
 def preprocess_scan(
     points: np.ndarray,
     cfg: PreprocessConfig,
-    rng: np.random.Generator | None = None,
-    augment: AugmentConfig | None = None,
-) -> tuple[np.ndarray, np.ndarray, bool]:
+    rng: Optional[np.random.Generator] = None,
+    augment: Optional[AugmentConfig] = None,
+) -> Tuple[np.ndarray, np.ndarray, bool]:
     """1 スキャンを (座標, 特徴, 左右反転したか) にする。
 
     rng を渡すとボクセルの代表点と点数の削減がランダムになる。augment は学習時だけ渡す。

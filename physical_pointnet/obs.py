@@ -1,6 +1,6 @@
 """状態と行動のスケール。学習と閉ループで同じ式を使う。点群の前処理は preprocess.py。"""
 
-from __future__ import annotations
+from typing import Tuple
 
 import math
 
@@ -40,7 +40,7 @@ def normalize_action(v: float, w: float, cfg: SimConfig) -> np.ndarray:
     return np.array([v / cfg.v_max, w / cfg.w_max], dtype=np.float32)
 
 
-def denormalize_action(pred: np.ndarray, cfg: SimConfig) -> tuple[float, float]:
+def denormalize_action(pred: np.ndarray, cfg: SimConfig) -> Tuple[float, float]:
     v = float(np.clip(pred[0], 0.0, 1.0) * cfg.v_max)
     w = float(np.clip(pred[1], -1.0, 1.0) * cfg.w_max)
     return v, w

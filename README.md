@@ -20,11 +20,18 @@
 
 ## 準備
 
+このブランチは **Python 3.6** / **PyTorch 1.10.0** / **CUDA 10.2** 向けです。型注釈は `typing` モジュール、`dataclasses` は backport、注意は素の matmul 実装です。
+
 ```bash
-python3.13 -m venv .venv
+python3.6 -m venv .venv
+.venv/bin/pip install --upgrade "pip<22" "setuptools<60" wheel
+# CUDA 10.2 付き torch（CPU のみならこの行は不要）
+.venv/bin/pip install torch==1.10.0+cu102 -f https://download.pytorch.org/whl/cu102/torch_stable.html
 .venv/bin/pip install -r requirements.txt
 export MPLCONFIGDIR="$(pwd)/.mplconfig"
 ```
+
+`scripts/prepare.sh` も同じ前提で venv を作ります。CPU だけのときは `pip install torch==1.10.0` のあと `requirements.txt` を入れてください。
 
 教師データの収集、学習、閉ループの順です。
 

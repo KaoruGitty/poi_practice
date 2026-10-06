@@ -1,7 +1,5 @@
 """点群エンコーダの共通の形。"""
 
-from __future__ import annotations
-
 import torch
 from torch import nn
 

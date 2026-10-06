@@ -1,6 +1,6 @@
 """1エピソードを進める。教師にも学習済み方針にも使う。"""
 
-from __future__ import annotations
+from typing import Optional, List, Tuple
 
 from dataclasses import dataclass, field
 
@@ -8,7 +8,6 @@ import numpy as np
 
 from .config import SimConfig
 from .sim.env import NavEnv
-
 
 @dataclass
 class EpisodeResult:
@@ -18,11 +17,10 @@ class EpisodeResult:
     steps: int
     final_dist: float
     world_name: str
-    points: list[np.ndarray] = field(default_factory=list)
-    status: list[np.ndarray] = field(default_factory=list)
-    action: list[np.ndarray] = field(default_factory=list)
-    trail: list[tuple[float, float]] = field(default_factory=list)
-
+    points: List[np.ndarray] = field(default_factory=list)
+    status: List[np.ndarray] = field(default_factory=list)
+    action: List[np.ndarray] = field(default_factory=list)
+    trail: List[Tuple[float, float]] = field(default_factory=list)
 
 def run_episode(
     env: NavEnv,
@@ -32,7 +30,7 @@ def run_episode(
     record: bool = False,
     noise_prob: float = 0.0,
     noise_width: float = 0.0,
-    rng: np.random.Generator | None = None,
+    rng: Optional[np.random.Generator] = None,
     on_step=None,
     execute_fn=None,
 ) -> EpisodeResult:
@@ -40,9 +38,9 @@ def run_episode(
     trail = [(env.state.x, env.state.y)]
     window_xy = (env.state.x, env.state.y)
     window_yaw = env.state.yaw
-    points: list[np.ndarray] = []
-    status: list[np.ndarray] = []
-    action: list[np.ndarray] = []
+    points: List[np.ndarray] = []
+    status: List[np.ndarray] = []
+    action: List[np.ndarray] = []
     collision = False
     stuck = False
     success = False

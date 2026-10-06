@@ -3,7 +3,7 @@
 半径はメートルで指定する。点数はサンプルごとに違ってよい。
 """
 
-from __future__ import annotations
+from typing import Union, List, Tuple
 
 import torch
 from torch import nn
@@ -17,13 +17,12 @@ DEFAULT_SA_LAYERS = (
     {"npoint": 16, "radii": [2.0, 4.0], "nsamples": [8, 16], "mlps": [[64, 64, 128], [128, 128, 256]]},
 )
 
-
 class _SharedMLP(nn.Module):
     """行ごとに同じ全結合を掛ける。入力は (R, C)。"""
 
-    def __init__(self, channels: list[int]):
+    def __init__(self, channels: List[int]):
         super().__init__()
-        layers: list[nn.Module] = []
+        layers: List[nn.Module] = []
         for cin, cout in zip(channels, channels[1:]):
             layers += [nn.Linear(cin, cout, bias=False), nn.BatchNorm1d(cout), nn.ReLU(inplace=True)]
         self.net = nn.Sequential(*layers)
@@ -32,9 +31,8 @@ class _SharedMLP(nn.Module):
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         return self.net(x)
 
-
 class _SetAbstractionMSG(nn.Module):
-    def __init__(self, npoint: int, radii: list[float], nsamples: list[int], mlps: list[list[int]], in_channels: int):
+    def __init__(self, npoint: int, radii: List[float], nsamples: List[int], mlps: List[List[int]], in_channels: int):
         super().__init__()
         if not (len(radii) == len(nsamples) == len(mlps)):
             raise ValueError("radii、nsamples、mlps の長さをそろえてください。")
@@ -46,7 +44,7 @@ class _SetAbstractionMSG(nn.Module):
 
     def forward(
         self, xyz: torch.Tensor, feat: torch.Tensor, mask: torch.Tensor, random_start: bool
-    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         batch, count, _ = xyz.shape
         npoint = min(self.npoint, count)
         new_xyz = gather_points(xyz, farthest_point_sample(xyz, mask, npoint, random_start))
@@ -63,7 +61,6 @@ class _SetAbstractionMSG(nn.Module):
             outs.append(torch.where(new_mask.unsqueeze(-1), pooled, torch.zeros_like(pooled)))
         return new_xyz, torch.cat(outs, dim=-1), new_mask
 
-
 class PointNet2Encoder(PointEncoder):
     """セット抽象化を重ね、最後に全点（ロボット座標の位置つき）を max でまとめる。
 
@@ -73,8 +70,8 @@ class PointNet2Encoder(PointEncoder):
     def __init__(
         self,
         in_channels: int,
-        sa_layers: list[dict] | tuple[dict, ...] = DEFAULT_SA_LAYERS,
-        global_mlp: list[int] | tuple[int, ...] = (256, 512),
+        sa_layers: Union[List[dict], Tuple[dict, ...]] = DEFAULT_SA_LAYERS,
+        global_mlp: Union[List[int], Tuple[int, ...]] = (256, 512),
         coord_scale: float = 1.0 / 8.0,
     ):
         super().__init__()
