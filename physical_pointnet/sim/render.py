@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import List, Tuple
+
 import math
 
 import matplotlib
@@ -33,7 +35,7 @@ def _use_japanese_font() -> None:
     _FONT_READY = True
 
 
-def _height_color(height: float) -> tuple[float, float, float]:
+def _height_color(height: float) -> Tuple[float, float, float]:
     mix = float(np.clip((height - 0.25) / 1.55, 0.0, 1.0))
     low = np.array([0.42, 0.66, 0.82])
     high = np.array([0.93, 0.70, 0.34])
@@ -45,7 +47,7 @@ def render_frame(
     state: RobotState,
     goal: np.ndarray,
     points_body: np.ndarray,
-    trail: list[tuple[float, float]],
+    trail: List[Tuple[float, float]],
     cfg: SimConfig,
     title: str,
 ) -> Image.Image:
@@ -138,7 +140,7 @@ def render_frame(
     return image
 
 
-def save_gif(frames: list[Image.Image], path: str, duration_ms: int) -> None:
+def save_gif(frames: List[Image.Image], path: str, duration_ms: int) -> None:
     if not frames:
         raise RuntimeError("フレームが空です")
     frames[0].save(path, save_all=True, append_images=frames[1:], duration=duration_ms, loop=0)

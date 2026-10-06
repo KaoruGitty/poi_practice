@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Tuple
+
 import math
 
 import numpy as np
@@ -40,7 +42,7 @@ def normalize_action(v: float, w: float, cfg: SimConfig) -> np.ndarray:
     return np.array([v / cfg.v_max, w / cfg.w_max], dtype=np.float32)
 
 
-def denormalize_action(pred: np.ndarray, cfg: SimConfig) -> tuple[float, float]:
+def denormalize_action(pred: np.ndarray, cfg: SimConfig) -> Tuple[float, float]:
     v = float(np.clip(pred[0], 0.0, 1.0) * cfg.v_max)
     w = float(np.clip(pred[1], -1.0, 1.0) * cfg.w_max)
     return v, w

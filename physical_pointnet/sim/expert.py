@@ -7,6 +7,8 @@
 
 from __future__ import annotations
 
+from typing import Optional, Dict, List, Tuple
+
 import heapq
 import math
 
@@ -17,10 +19,9 @@ from .geometry import clearance, collides, wrap_angle
 from .maps import World
 from .robot import RobotState
 
-_GRID_CACHE: dict[str, tuple[float, np.ndarray]] = {}
+_GRID_CACHE: Dict[str, Tuple[float, np.ndarray]] = {}
 
-
-def _occupancy(world: World, cfg: SimConfig) -> tuple[float, np.ndarray]:
+def _occupancy(world: World, cfg: SimConfig) -> Tuple[float, np.ndarray]:
     cached = _GRID_CACHE.get(world.name)
     if cached is not None:
         return cached
@@ -42,13 +43,11 @@ def _occupancy(world: World, cfg: SimConfig) -> tuple[float, np.ndarray]:
     _GRID_CACHE[world.name] = (resolution, blocked)
     return resolution, blocked
 
-
 def _cell(value: float, resolution: float, limit: int) -> int:
     index = int(round((value - resolution / 2.0) / resolution))
     return min(max(index, 0), limit - 1)
 
-
-def _nearest_free(blocked: np.ndarray, iy: int, ix: int) -> tuple[int, int] | None:
+def _nearest_free(blocked: np.ndarray, iy: int, ix: int) -> Optional[Tuple[int, int]]:
     if not blocked[iy, ix]:
         return iy, ix
     h, w = blocked.shape
@@ -60,14 +59,13 @@ def _nearest_free(blocked: np.ndarray, iy: int, ix: int) -> tuple[int, int] | No
                     return ny, nx
     return None
 
-
-def _astar(blocked: np.ndarray, start: tuple[int, int], goal: tuple[int, int]) -> list[tuple[int, int]] | None:
+def _astar(blocked: np.ndarray, start: Tuple[int, int], goal: Tuple[int, int]) -> Optional[List[Tuple[int, int]]]:
     height, width = blocked.shape
-    def heuristic(a: tuple[int, int], b: tuple[int, int]) -> float:
+    def heuristic(a: Tuple[int, int], b: Tuple[int, int]) -> float:
         return math.hypot(a[0] - b[0], a[1] - b[1])
 
     queue = [(heuristic(start, goal), 0.0, start)]
-    came: dict[tuple[int, int], tuple[int, int]] = {}
+    came: Dict[Tuple[int, int], Tuple[int, int]] = {}
     cost = {start: 0.0}
     steps = ((-1, 0), (1, 0), (0, -1), (0, 1), (-1, -1), (-1, 1), (1, -1), (1, 1))
     while queue:
@@ -97,7 +95,6 @@ def _astar(blocked: np.ndarray, start: tuple[int, int], goal: tuple[int, int]) -
                 heapq.heappush(queue, (next_cost + heuristic(nxt, goal), next_cost, nxt))
     return None
 
-
 def _shortcut(points: np.ndarray, world: World, cfg: SimConfig, radius: float) -> np.ndarray:
     if len(points) < 3:
         return points
@@ -114,7 +111,6 @@ def _shortcut(points: np.ndarray, world: World, cfg: SimConfig, radius: float) -
         anchor = nxt
     return np.asarray(kept, dtype=np.float32)
 
-
 def _segment_free(a: np.ndarray, b: np.ndarray, obstacles: list, world: World, radius: float) -> bool:
     dist = float(np.hypot(b[0] - a[0], b[1] - a[1]))
     steps = max(int(dist / 0.2), 1)
@@ -126,8 +122,7 @@ def _segment_free(a: np.ndarray, b: np.ndarray, obstacles: list, world: World, r
             return False
     return True
 
-
-def _plan_path(state: RobotState, goal: np.ndarray, world: World, cfg: SimConfig) -> np.ndarray | None:
+def _plan_path(state: RobotState, goal: np.ndarray, world: World, cfg: SimConfig) -> Optional[np.ndarray]:
     resolution, blocked = _occupancy(world, cfg)
     h, w = blocked.shape
     start = _nearest_free(blocked, _cell(state.y, resolution, h), _cell(state.x, resolution, w))
@@ -151,7 +146,6 @@ def _plan_path(state: RobotState, goal: np.ndarray, world: World, cfg: SimConfig
     )
     return _shortcut(waypoints, world, cfg, cfg.robot_radius + 0.28)
 
-
 def _clear(state: RobotState, heading: float, world: World, cfg: SimConfig, max_dist: float = 3.5) -> float:
     return clearance(
         state.x,
@@ -164,7 +158,6 @@ def _clear(state: RobotState, heading: float, world: World, cfg: SimConfig, max_
         max_dist,
     )
 
-
 def _speed(goal_dist: float, front: float, err: float, cfg: SimConfig) -> float:
     if front < 0.16:
         return 0.0
@@ -174,8 +167,7 @@ def _speed(goal_dist: float, front: float, err: float, cfg: SimConfig) -> float:
     floor = 0.18 if goal_dist > cfg.goal_radius else 0.0
     return cfg.v_max * speed_scale * turn_scale * max(arrive, floor)
 
-
-def _pursuit(state: RobotState, path: np.ndarray, goal: np.ndarray, world: World, cfg: SimConfig) -> tuple[float, float]:
+def _pursuit(state: RobotState, path: np.ndarray, goal: np.ndarray, world: World, cfg: SimConfig) -> Tuple[float, float]:
     distance = np.hypot(path[:, 0] - state.x, path[:, 1] - state.y)
     nearest = int(np.argmin(distance))
     obstacles = list(world.obstacles)
@@ -209,8 +201,7 @@ def _pursuit(state: RobotState, path: np.ndarray, goal: np.ndarray, world: World
     goal_dist = math.hypot(float(goal[0] - state.x), float(goal[1] - state.y))
     return _speed(goal_dist, _clear(state, state.yaw, world, cfg), err, cfg), w_cmd
 
-
-def _reactive(state: RobotState, goal: np.ndarray, world: World, cfg: SimConfig) -> tuple[float, float]:
+def _reactive(state: RobotState, goal: np.ndarray, world: World, cfg: SimConfig) -> Tuple[float, float]:
     dx = float(goal[0] - state.x)
     dy = float(goal[1] - state.y)
     goal_dist = math.hypot(dx, dy)
@@ -242,8 +233,7 @@ def _reactive(state: RobotState, goal: np.ndarray, world: World, cfg: SimConfig)
     arrive = float(np.clip((goal_dist - 0.1) / 1.8, 0.0, 1.0))
     return cfg.v_max * speed_scale * turn_scale * max(arrive, 0.12), w_cmd
 
-
-def expert_action(state: RobotState, goal: np.ndarray, world: World, cfg: SimConfig) -> tuple[float, float]:
+def expert_action(state: RobotState, goal: np.ndarray, world: World, cfg: SimConfig) -> Tuple[float, float]:
     path = _plan_path(state, goal, world, cfg)
     if path is None or len(path) < 2:
         return _reactive(state, goal, world, cfg)

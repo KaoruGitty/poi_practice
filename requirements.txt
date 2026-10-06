@@ -1,4 +1,6 @@
-numpy>=1.26
-torch>=2.2
-matplotlib>=3.8
-pillow>=10
+# Python 3.8 / PyTorch 2.1.0 向け
+# numpy 1.25+ と matplotlib 3.8+ は Python 3.9 以降専用のため上限を付ける。
+numpy>=1.21,<1.25
+torch==2.1.0
+matplotlib>=3.5,<3.8
+pillow>=9.0,<11
