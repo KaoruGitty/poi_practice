@@ -1,9 +1,10 @@
 {
+  "num_point": 8192,
   "sa_layers": [
     {"npoint": 4096, "radii": [0.5, 1.0], "nsamples": [16, 32], "mlps": [[32, 32, 64], [64, 64, 128]]},
     {"npoint": 1024, "radii": [1.0, 2.0], "nsamples": [16, 32], "mlps": [[64, 64, 128], [128, 128, 256]]},
     {"npoint": 256, "radii": [2.0, 4.0], "nsamples": [16, 32], "mlps": [[128, 128, 256], [256, 256, 512]]}
   ],
   "global_mlp": [512, 1024],
-  "coord_scale": 0.02
+  "use_feature": true
 }

@@ -1,4 +1,4 @@
-"""点群エンコーダ（PointNet++ か PTv3）と状態から、正規化済み速度指令を回帰する。"""
+"""点群エンコーダ（PointNet++ / Point Transformer など）と状態から、正規化済み速度指令を回帰する。"""
 
 import argparse
 import contextlib

@@ -14,19 +14,31 @@
 
 高さ 0.3 m 前後のパレットは、水平ビームの下をすり抜けます。下向きのリングだけが当たります。
 
-ネットワークは、点群を 1 本のベクトルにする**エンコーダ**、状態を小さな全結合でベクトルにする**状態の枝**、2 本を連結して `v` と `ω` を出す**回帰ヘッド**に分かれています。エンコーダは PointNet++ と Point Transformer V3（PTv3）から `--encoder` で選びます。点数はフレームごとに違ってよく、固定点数に揃える必要はありません。構成は [docs/architecture.md](docs/architecture.md)、PointNet++ の中身は [docs/pointnet2.md](docs/pointnet2.md)、PTv3 の中身は [docs/ptv3.md](docs/ptv3.md) にあります。
+ネットワークは、点群を 1 本のベクトルにする**エンコーダ**、状態を小さな全結合でベクトルにする**状態の枝**、2 本を連結して `v` と `ω` を出す**回帰ヘッド**に分かれています。
+
+**このブランチ**ではバックボーンを公開実装の import で組み立てます。
+
+| `--encoder` | 中身 |
+| --- | --- |
+| `pointnet2`（既定） | [yanx27/Pointnet_Pointnet2_pytorch](https://github.com/yanx27/Pointnet_Pointnet2_pytorch) のセット抽象化（`third_party/pointnet2_pytorch`） |
+| `point_transformer` | [qq456cvb/Point-Transformers](https://github.com/qq456cvb/Point-Transformers) の Hengshuang Point Transformer（`third_party/point_transformer`） |
+| `pointnet2_native` / `ptv3` | このリポジトリの自前実装（比較用） |
+
+OSS 版は公開分類実装に合わせ、内部で固定点数（`num_point`）へ揃えます。取り込み元のメモは [third_party/README.md](third_party/README.md) です。構成は [docs/architecture.md](docs/architecture.md)、自前 PointNet++ は [docs/pointnet2.md](docs/pointnet2.md)、自前 PTv3 は [docs/ptv3.md](docs/ptv3.md) です。
 
 教師は地図を知っている A* と pure pursuit です。学生が見るのは点群と状態だけです。集めた軌跡の上だけで合わせると、少し外れた瞬間に壁へ向かったまま止まります。そこで、学習済みの方針を混ぜて走らせ、その状態にも教師の指令を付け直して追加します。
 
 ## 準備
 
-このブランチは **Python 3.6** / **PyTorch 1.10.0** / **CUDA 10.2** 向けです。型注釈は `typing` モジュール、`dataclasses` は backport、注意は素の matmul 実装です。
+このブランチは **Python 3.6** / **PyTorch 1.10.0** / **CUDA 10.2〜11.3** 向けです。型注釈は `typing` モジュール、`dataclasses` は backport、自前 PTv3 の注意は素の matmul 実装です。コード側に CUDA 10.2 専用の処理はなく、同じ wheel 系列なら **CUDA 11.3（`torch==1.10.0+cu113`）でも使えます**。
 
 ```bash
 python3.6 -m venv .venv
 .venv/bin/pip install --upgrade "pip<22" "setuptools<60" wheel
-# CUDA 10.2 付き torch（CPU のみならこの行は不要）
+# CUDA 10.2 付き torch（11.3 なら cu113 の index に差し替え）
 .venv/bin/pip install torch==1.10.0+cu102 -f https://download.pytorch.org/whl/cu102/torch_stable.html
+# 例: CUDA 11.3
+# .venv/bin/pip install torch==1.10.0+cu113 -f https://download.pytorch.org/whl/cu113/torch_stable.html
 .venv/bin/pip install -r requirements.txt
 export MPLCONFIGDIR="$(pwd)/.mplconfig"
 ```
@@ -45,17 +57,17 @@ export MPLCONFIGDIR="$(pwd)/.mplconfig"
 .venv/bin/python -m physical_pointnet.evaluate --ckpt runs/pointnet2_dagger/best.pt --episodes 8 --gif runs/pointnet2_dagger/rollout.gif
 ```
 
-エンコーダを PTv3 にするときは `--encoder ptv3` です。保存先を省くと `runs/<エンコーダ名>/` になります。エンコーダと前処理の細かい値は JSON で上書きします。屋外 LiDAR 向けの例を `configs/` に置いています。
+Point Transformer（OSS）にするときは `--encoder point_transformer` です。保存先を省くと `runs/<エンコーダ名>/` になります。エンコーダと前処理の細かい値は JSON で上書きします。屋外 LiDAR 向けの例を `configs/` に置いています。
 
 ```bash
-.venv/bin/python -m physical_pointnet.train --data data/outdoor.npz --encoder ptv3 \
-  --encoder-config configs/encoders/ptv3_outdoor.json \
+.venv/bin/python -m physical_pointnet.train --data data/outdoor.npz --encoder point_transformer \
+  --encoder-config configs/encoders/point_transformer_outdoor.json \
   --preprocess-config configs/preprocess/outdoor.json --device cuda --amp
 ```
 
 状態を外した比較は `--no-status`、増強を切るのは `--no-augment` です。教師だけの走行は `evaluate --expert` です。チェックポイントにはエンコーダの設定と前処理の値も入るので、評価と追加収集は `--ckpt` を渡すだけで同じ構成を組み直します。
 
-`scripts/prepare.sh` は上の一連をまとめて実行します。`ENCODER=ptv3 scripts/prepare.sh` で PTv3 版になり、閉ループ用の重みは `runs/<エンコーダ名>_final/best_closed.pt` です。
+`scripts/prepare.sh` は上の一連をまとめて実行します。`ENCODER=point_transformer scripts/prepare.sh` で Point Transformer 版になり、閉ループ用の重みは `runs/<エンコーダ名>_final/best_closed.pt` です。
 
 ## 今回の走行
 
@@ -81,7 +93,8 @@ PointNet++ はこのデータで 15 エポック学習しました。角速度�
 - `physical_pointnet/sim/` 地図、レイキャスト、車両、教師、描画
 - `physical_pointnet/preprocess.py` 1 スキャンの前処理（欠損、距離と高さの範囲、ロボット座標への変換、ボクセル間引き、点数の上限、特徴の倍率、学習時の増強）。別の点群データの調べ方は [docs/pointcloud_data.md](docs/pointcloud_data.md)
 - `physical_pointnet/points.py` 点数がばらばらのバッチ `PointBatch` と、最遠点サンプリング、近傍探索などの点群演算
-- `physical_pointnet/encoders/` 点群エンコーダ。`pointnet2.py`（複数半径のセット抽象化）、`ptv3.py`（直列化と区画の注意）、PTv3 用の `serialization.py` と `sparse_conv.py`
+- `third_party/` 公開実装の取り込み（PointNet++ / Point Transformer）。ライセンスは各ディレクトリの `LICENSE`
+- `physical_pointnet/encoders/` 点群エンコーダ。`pointnet2.py` と `point_transformer.py` は OSS の薄いラッパ。自前実装は `pointnet2_native.py` と `ptv3.py`
 - `physical_pointnet/model.py` 状態の枝、回帰ヘッド、組み立て、チェックポイントの保存と読み込み
 - `physical_pointnet/collect.py` 教師デモ、または学習済み方針を混ぜた追加収集
 - `physical_pointnet/train.py` 回帰。検証損失の最良と閉ループ成功率が最も高い重みを保存します
@@ -95,5 +108,8 @@ PointNet++ はこのデータで 15 エポック学習しました。角速度�
 
 - Qi, C. R., Su, H., Mo, K., Guibas, L. J. PointNet: Deep Learning on Point Sets for 3D Classification and Segmentation. CVPR 2017.
 - Qi, C. R., Yi, L., Su, H., Guibas, L. J. PointNet++: Deep Hierarchical Feature Learning on Point Sets in a Metric Space. NeurIPS 2017.
+- Zhao, H., Jiang, L., Jia, J., Torr, P., Koltun, V. Point Transformer. ICCV 2021.
 - Wu, X., Jiang, L., Wang, P.-S., Liu, Z., Liu, X., Qiao, Y., Ouyang, W., He, T., Zhao, H. Point Transformer V3: Simpler, Faster, Stronger. CVPR 2024.
 - Ross, S., Gordon, G., Bagnell, J. A. A Reduction of Imitation Learning and Structured Prediction to No-Regret Online Learning. AISTATS 2011.
+- Yan, X. Pointnet/Pointnet++ Pytorch. https://github.com/yanx27/Pointnet_Pointnet2_pytorch
+- You, Y. Point Transformers (PyTorch). https://github.com/qq456cvb/Point-Transformers
