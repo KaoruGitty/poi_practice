@@ -5,7 +5,7 @@
 学習済みの重みは使わない。重みが関わる図（max の様子）は乱数で初期化したネットワークの値。
 """
 
-from __future__ import annotations
+from typing import Optional, List, Tuple
 
 import sys
 from pathlib import Path
@@ -48,8 +48,7 @@ OUT = ROOT / "docs" / "images"
 plt.rcParams["font.family"] = ["Hiragino Sans", "DejaVu Sans"]
 plt.rcParams["axes.unicode_minus"] = False
 
-
-def scans() -> tuple[list[np.ndarray], list[np.ndarray]]:
+def scans() -> Tuple[List[np.ndarray], List[np.ndarray]]:
     cfg = SimConfig()
     pre = PreprocessConfig.for_sim(cfg)
     coords, feats = [], []
@@ -62,8 +61,7 @@ def scans() -> tuple[list[np.ndarray], list[np.ndarray]]:
         feats.append(f)
     return coords, feats
 
-
-def top_view(ax, title: str | None = None, lim: float = 8.0) -> None:
+def top_view(ax, title: Optional[str] = None, lim: float = 8.0) -> None:
     """上から見た図。縦が前（x）、横が左右（y、左が正なので軸を反転）。"""
     ax.set_aspect("equal")
     ax.set_xlim(lim, -lim)
@@ -74,18 +72,15 @@ def top_view(ax, title: str | None = None, lim: float = 8.0) -> None:
     if title:
         ax.set_title(title)
 
-
 def save(fig, name: str) -> None:
     fig.tight_layout()
     fig.savefig(OUT / name, dpi=110, bbox_inches="tight")
     plt.close(fig)
     print("wrote", name)
 
-
 # ---------------------------------------------------------------- PointNet++
 
-
-def pn2_figures(coords: list[np.ndarray], feats: list[np.ndarray]) -> None:
+def pn2_figures(coords: List[np.ndarray], feats: List[np.ndarray]) -> None:
     pb = PointBatch.from_arrays(coords, feats)
     c0 = coords[0]
 
@@ -222,11 +217,9 @@ def pn2_figures(coords: list[np.ndarray], feats: list[np.ndarray]) -> None:
         top_view(ax, f"{title}：{len(pts)} 点 × {ch} 次元")
     save(fig, "pn2_hierarchy.png")
 
-
 # ---------------------------------------------------------------- PTv3
 
-
-def ptv3_figures(coords: list[np.ndarray], feats: list[np.ndarray]) -> None:
+def ptv3_figures(coords: List[np.ndarray], feats: List[np.ndarray]) -> None:
     pb = PointBatch.from_arrays(coords[:2], feats[:2])
     grid_size = 0.1
     origin = segment_reduce(pb.coord, pb.batch, pb.batch_size, "min")
@@ -372,14 +365,12 @@ def ptv3_figures(coords: list[np.ndarray], feats: list[np.ndarray]) -> None:
     fig.suptitle(f"段 3（格子 0.4 m）の点 {p} の近傍表の行（数字は近傍の点番号、なしは 0 の行を指す）")
     save(fig, "ptv3_neighbor_table.png")
 
-
 def main() -> None:
     OUT.mkdir(parents=True, exist_ok=True)
     torch.manual_seed(0)
     coords, feats = scans()
     pn2_figures(coords, feats)
     ptv3_figures(coords, feats)
-
 
 if __name__ == "__main__":
     main()

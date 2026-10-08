@@ -1,6 +1,6 @@
 """室内ナビゲーション用の地図。低い障害物は水平スキャンでは見えない。"""
 
-from __future__ import annotations
+from typing import List, Tuple
 
 from dataclasses import dataclass
 
@@ -13,11 +13,11 @@ class World:
     title: str
     width: float
     height: float
-    obstacles: tuple[AABB, ...]
-    start_region: tuple[float, float, float, float]
-    goal_region: tuple[float, float, float, float]
+    obstacles: Tuple[AABB, ...]
+    start_region: Tuple[float, float, float, float]
+    goal_region: Tuple[float, float, float, float]
 
-    def solids(self) -> list[AABB]:
+    def solids(self) -> List[AABB]:
         """レイキャスト用。室内の障害物に外壁を足す。"""
         thickness = 0.5
         wall_h = 2.2
@@ -105,5 +105,5 @@ def slalom() -> World:
     )
 
 
-def all_maps() -> list[World]:
+def all_maps() -> List[World]:
     return [room(), corridor(), warehouse(), slalom()]

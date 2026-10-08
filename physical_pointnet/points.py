@@ -5,13 +5,12 @@
 CUDA 実装に差し替える。
 """
 
-from __future__ import annotations
+from typing import Union, List, Tuple
 
 from dataclasses import dataclass
 
 import numpy as np
 import torch
-
 
 @dataclass
 class PointBatch:
@@ -30,7 +29,7 @@ class PointBatch:
     def counts(self) -> torch.Tensor:
         return torch.bincount(self.batch, minlength=self.batch_size)
 
-    def to(self, device: torch.device | str) -> "PointBatch":
+    def to(self, device: Union[torch.device, str]) -> "PointBatch":
         return PointBatch(
             self.coord.to(device, non_blocking=True),
             self.feat.to(device, non_blocking=True),
@@ -39,7 +38,7 @@ class PointBatch:
         )
 
     @staticmethod
-    def from_arrays(coords: list[np.ndarray], feats: list[np.ndarray]) -> "PointBatch":
+    def from_arrays(coords: List[np.ndarray], feats: List[np.ndarray]) -> "PointBatch":
         counts = [len(c) for c in coords]
         if min(counts) < 1:
             raise ValueError("点が 0 個のサンプルがあります。前処理で最低 1 点を残してください。")
@@ -51,10 +50,9 @@ class PointBatch:
             batch_size=len(counts),
         )
 
-
 def to_padded(
     values: torch.Tensor, batch: torch.Tensor, batch_size: int, fill: float = 0.0
-) -> tuple[torch.Tensor, torch.Tensor]:
+) -> Tuple[torch.Tensor, torch.Tensor]:
     """(M, C) を (B, Nmax, C) に詰め直す。mask は実在する点で True。"""
     counts = torch.bincount(batch, minlength=batch_size)
     start = torch.cumsum(counts, 0) - counts
@@ -66,13 +64,11 @@ def to_padded(
     mask[batch, local] = True
     return out, mask
 
-
 def gather_points(values: torch.Tensor, idx: torch.Tensor) -> torch.Tensor:
     """values (B, N, C) から idx (B, ...) の点を取り出して (B, ..., C) にする。"""
     batch = torch.arange(values.shape[0], device=values.device)
     batch = batch.view(-1, *([1] * (idx.dim() - 1))).expand_as(idx)
     return values[batch, idx]
-
 
 def farthest_point_sample(
     xyz: torch.Tensor, mask: torch.Tensor, npoint: int, random_start: bool = False
@@ -97,7 +93,6 @@ def farthest_point_sample(
         farthest = distance.argmax(dim=1)
     return chosen
 
-
 def ball_query(
     centers: torch.Tensor,
     center_mask: torch.Tensor,
@@ -106,7 +101,7 @@ def ball_query(
     radius: float,
     k: int,
     chunk_elems: int = 1 << 25,
-) -> tuple[torch.Tensor, torch.Tensor]:
+) -> Tuple[torch.Tensor, torch.Tensor]:
     """各中心から近い順に最大 k 点を取り、半径の外と存在しない点を無効にする。
 
     距離表は中心をいくつかずつに区切って作るので、メモリは chunk_elems 要素程度に収まる。
@@ -128,7 +123,6 @@ def ball_query(
     valid &= center_mask.unsqueeze(-1)
     return idx, valid
 
-
 def segment_reduce(values: torch.Tensor, index: torch.Tensor, size: int, reduce: str) -> torch.Tensor:
     """index ごとに values (M, C) を max / min / mean でまとめて (size, C) にする。"""
     if reduce == "mean":
@@ -140,7 +134,6 @@ def segment_reduce(values: torch.Tensor, index: torch.Tensor, size: int, reduce:
     mode = "amax" if reduce == "max" else "amin"
     return out.scatter_reduce_(0, index.unsqueeze(-1).expand_as(values), values, mode, include_self=True)
 
-
 def global_pool(feat: torch.Tensor, batch: torch.Tensor, batch_size: int, mode: str) -> torch.Tensor:
     """点ごとの特徴をサンプルごとに 1 本のベクトルにする。mode は max、mean、max+mean。"""
     if mode == "max+mean":
@@ -149,7 +142,6 @@ def global_pool(feat: torch.Tensor, batch: torch.Tensor, batch_size: int, mode: 
             dim=1,
         )
     return segment_reduce(feat, batch, batch_size, mode)
-
 
 def pooled_width(channels: int, mode: str) -> int:
     return channels * 2 if mode == "max+mean" else channels

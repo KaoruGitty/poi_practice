@@ -1,6 +1,6 @@
 """ナビゲーション環境。観測は多層LiDAR点群と身体状態。"""
 
-from __future__ import annotations
+from typing import Optional, Tuple
 
 import math
 
@@ -12,7 +12,6 @@ from .geometry import body_dirs, collides, raycast
 from .maps import World
 from .robot import RobotState, step_robot
 
-
 class NavEnv:
     def __init__(self, world: World, cfg: SimConfig, rng: np.random.Generator):
         self.world = world
@@ -22,7 +21,7 @@ class NavEnv:
         self.state = RobotState(0.0, 0.0, 0.0, 0.0, 0.0)
         self.goal = np.zeros(2, dtype=np.float32)
         self.steps = 0
-        self._points: np.ndarray | None = None
+        self._points: Optional[np.ndarray] = None
 
     def reset(self) -> None:
         cfg = self.cfg
@@ -46,7 +45,7 @@ class NavEnv:
 
     def _sample_xy(
         self,
-        region: tuple[float, float, float, float],
+        region: Tuple[float, float, float, float],
         obstacles: list,
         radius: float,
     ) -> np.ndarray:
@@ -64,7 +63,7 @@ class NavEnv:
     def reached(self) -> bool:
         return self.goal_distance() <= self.cfg.goal_radius
 
-    def observe(self) -> tuple[np.ndarray, np.ndarray]:
+    def observe(self) -> Tuple[np.ndarray, np.ndarray]:
         if self._points is None:
             self._points = self._scan()
         status = make_status(self.state, self.goal, self.cfg)

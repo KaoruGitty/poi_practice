@@ -1,6 +1,4 @@
-"""点群エンコーダ（PointNet++ か PTv3）と状態から、正規化済み速度指令を回帰する。"""
-
-from __future__ import annotations
+"""点群エンコーダ（PointNet++ / Point Transformer など）と状態から、正規化済み速度指令を回帰する。"""
 
 import argparse
 import contextlib
@@ -25,6 +23,14 @@ from .rollout import run_episode
 from .sim.env import NavEnv
 from .sim.maps import all_maps
 
+# Python 3.6 には contextlib.nullcontext がない。
+try:
+    nullcontext = contextlib.nullcontext
+except AttributeError:
+    @contextlib.contextmanager
+    def nullcontext():
+        yield
+
 
 def pick_device(name: str) -> torch.device:
     if name == "auto":
@@ -36,6 +42,21 @@ def load_json(path: str) -> dict:
     return json.loads(Path(path).read_text(encoding="utf-8")) if path else {}
 
 
+def make_autocast(device, amp_dtype):
+    """PyTorch 1.10 は torch.cuda.amp.autocast。dtype 引数は後発 API。"""
+    if amp_dtype is None or device.type != "cuda":
+        return nullcontext()
+    try:
+        return torch.cuda.amp.autocast(dtype=amp_dtype)
+    except TypeError:
+        return torch.cuda.amp.autocast()
+
+
+def make_grad_scaler(enabled):
+    """PyTorch 1.10 は torch.cuda.amp.GradScaler のみ。"""
+    return torch.cuda.amp.GradScaler(enabled=enabled)
+
+
 def run_epoch(model, loader, optimizer, device, omega_weight: float, amp_dtype, scaler) -> float:
     total = 0.0
     count = 0
@@ -43,15 +64,12 @@ def run_epoch(model, loader, optimizer, device, omega_weight: float, amp_dtype, 
         points = points.to(device)
         status = status.to(device, non_blocking=True)
         action = action.to(device, non_blocking=True)
-        autocast = (
-            torch.autocast(device_type=device.type, dtype=amp_dtype) if amp_dtype is not None else contextlib.nullcontext()
-        )
-        with autocast:
+        with make_autocast(device, amp_dtype):
             pred = model(points, status)
         err = pred.float() - action
         loss = (err[:, 0] ** 2).mean() + omega_weight * (err[:, 1] ** 2).mean()
         if optimizer is not None:
-            optimizer.zero_grad(set_to_none=True)
+            optimizer.zero_grad()
             scaler.scale(loss).backward()
             scaler.unscale_(optimizer)
             torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
@@ -96,17 +114,18 @@ def train(args: argparse.Namespace) -> None:
         collate_fn=collate_samples,
         num_workers=args.num_workers,
         pin_memory=device.type == "cuda",
-        persistent_workers=args.num_workers > 0,
     )
+    # persistent_workers は 1.7+。num_workers=0 のときは渡さない。
+    if args.num_workers > 0:
+        loader_kw["persistent_workers"] = True
     train_loader = DataLoader(train_ds, shuffle=True, drop_last=len(train_ds) > args.batch_size, **loader_kw)
     val_loader = DataLoader(val_ds, shuffle=False, **loader_kw)
 
     model = build_model(model_cfg).to(device)
     optimizer = torch.optim.AdamW(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
-    amp_dtype = None
-    if args.amp and device.type == "cuda":
-        amp_dtype = torch.bfloat16 if torch.cuda.is_bf16_supported() else torch.float16
-    scaler = torch.amp.GradScaler(device.type, enabled=amp_dtype == torch.float16)
+    # CUDA 10.2 / torch 1.10 では AMP は float16 前提。
+    amp_dtype = torch.float16 if (args.amp and device.type == "cuda") else None
+    scaler = make_grad_scaler(enabled=amp_dtype is not None)
     out = Path(args.out)
     out.mkdir(parents=True, exist_ok=True)
 
@@ -124,7 +143,7 @@ def train(args: argparse.Namespace) -> None:
             val_loss = run_epoch(model, val_loader, None, device, args.omega_weight, amp_dtype, scaler)
         probe = None
         if args.probe_every and epoch % args.probe_every == 0:
-            probe = closed_loop_probe(model, preprocess_cfg, cfg, device, seed=10_000 + epoch)
+            probe = closed_loop_probe(model, preprocess_cfg, cfg, device, seed=10000 + epoch)
         history.append({"epoch": epoch, "train_loss": train_loss, "val_loss": val_loss, "success_rate": probe})
         message = f"epoch {epoch:02d}  train={train_loss:.4f}  val={val_loss:.4f}"
         if probe is not None:
@@ -172,9 +191,9 @@ def main() -> None:
     parser.add_argument("--no-status", action="store_true")
     parser.add_argument("--no-augment", action="store_true")
     parser.add_argument("--probe-every", type=int, default=5)
-    parser.add_argument("--device", default="auto", choices=["cpu", "mps", "cuda", "auto"])
+    parser.add_argument("--device", default="auto", choices=["cpu", "cuda", "auto"])
     parser.add_argument("--num-workers", type=int, default=0)
-    parser.add_argument("--amp", action="store_true", help="CUDA で混合精度を使う")
+    parser.add_argument("--amp", action="store_true", help="CUDA で混合精度（float16）を使う")
     args = parser.parse_args()
     args.out = args.out or f"runs/{args.encoder}"
     torch.manual_seed(args.seed)

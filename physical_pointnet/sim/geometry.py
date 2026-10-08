@@ -1,12 +1,11 @@
 """軸平行ボックスに対するレイキャストと円衝突。"""
 
-from __future__ import annotations
+from typing import Optional, List, Tuple
 
 import math
 from dataclasses import dataclass
 
 import numpy as np
-
 
 @dataclass(frozen=True)
 class AABB:
@@ -21,10 +20,8 @@ class AABB:
     def from_center(cx: float, cy: float, sx: float, sy: float, height: float) -> "AABB":
         return AABB(cx - sx / 2.0, cx + sx / 2.0, cy - sy / 2.0, cy + sy / 2.0, 0.0, height)
 
-
 def wrap_angle(angle: float) -> float:
     return (angle + math.pi) % (2.0 * math.pi) - math.pi
-
 
 def _safe_inv(direction: np.ndarray) -> np.ndarray:
     out = np.empty_like(direction)
@@ -34,11 +31,10 @@ def _safe_inv(direction: np.ndarray) -> np.ndarray:
     out[small] = np.copysign(1e12, signs)
     return out
 
-
 def raycast(
     origin: np.ndarray,
     dirs_world: np.ndarray,
-    boxes: list[AABB],
+    boxes: List[AABB],
     max_range: float,
 ) -> np.ndarray:
     """単位方向ベクトルごとの衝突距離を返す。地面・ボックス・最大距離の最短。"""
@@ -83,8 +79,7 @@ def raycast(
 
     return np.clip(t_hit, 0.0, max_range).astype(np.float32)
 
-
-def collides(x: float, y: float, radius: float, obstacles: list[AABB], width: float, height: float) -> bool:
+def collides(x: float, y: float, radius: float, obstacles: List[AABB], width: float, height: float) -> bool:
     if x < radius or y < radius or x > width - radius or y > height - radius:
         return True
     r2 = radius * radius
@@ -95,7 +90,6 @@ def collides(x: float, y: float, radius: float, obstacles: list[AABB], width: fl
             return True
     return False
 
-
 def _ray_aabb_2d(
     x: float,
     y: float,
@@ -105,7 +99,7 @@ def _ray_aabb_2d(
     xmax: float,
     ymin: float,
     ymax: float,
-) -> float | None:
+) -> Optional[float]:
     """原点がボックス外なら進入距離、内部なら 0、外れていれば None。"""
     ts_min = []
     ts_max = []
@@ -128,12 +122,11 @@ def _ray_aabb_2d(
         return t_enter
     return 0.0
 
-
 def clearance(
     x: float,
     y: float,
     yaw: float,
-    obstacles: list[AABB],
+    obstacles: List[AABB],
     width: float,
     height: float,
     radius: float,
@@ -166,8 +159,7 @@ def clearance(
             best = min(best, hit)
     return float(max(0.0, best))
 
-
-def body_dirs(n_azimuth: int, elevations_deg: tuple[float, ...]) -> np.ndarray:
+def body_dirs(n_azimuth: int, elevations_deg: Tuple[float, ...]) -> np.ndarray:
     azimuth = np.linspace(-np.pi, np.pi, n_azimuth, endpoint=False)
     elevation = np.deg2rad(np.asarray(elevations_deg, dtype=np.float64))
     az_grid, el_grid = np.meshgrid(azimuth, elevation, indexing="xy")
@@ -177,7 +169,6 @@ def body_dirs(n_azimuth: int, elevations_deg: tuple[float, ...]) -> np.ndarray:
         axis=-1,
     )
     return dirs.reshape(-1, 3).astype(np.float32)
-
 
 def to_world(points_body: np.ndarray, x: float, y: float, yaw: float) -> np.ndarray:
     c = math.cos(yaw)
@@ -189,7 +180,6 @@ def to_world(points_body: np.ndarray, x: float, y: float, yaw: float) -> np.ndar
     out[:, 1] = y + s * xb + c * yb
     out[:, 2] = points_body[:, 2]
     return out
-
 
 def selftest() -> None:
     tall = AABB.from_center(5.0, 2.0, 1.0, 1.0, 1.5)
@@ -220,7 +210,6 @@ def selftest() -> None:
     if abs(gap - 2.2) > 1e-3:
         raise AssertionError(f"クリアランスがずれている: {gap}")
     print("geometry selftest ok")
-
 
 if __name__ == "__main__":
     selftest()

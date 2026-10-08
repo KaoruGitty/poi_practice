@@ -1,6 +1,6 @@
 """シミュレータと観測のスケール。収集・学習・評価で共有する。"""
 
-from __future__ import annotations
+from typing import Tuple
 
 from dataclasses import asdict, dataclass
 
@@ -17,7 +17,7 @@ class SimConfig:
     lidar_max_range: float = 8.0
     z_scale: float = 2.0
     n_azimuth: int = 72
-    elevations_deg: tuple[float, ...] = (-12.0, -2.0, 3.0, 10.0)
+    elevations_deg: Tuple[float, ...] = (-12.0, -2.0, 3.0, 10.0)
     goal_radius: float = 0.45
     max_steps: int = 420
     goal_scale: float = 12.0

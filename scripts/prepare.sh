@@ -1,10 +1,17 @@
 #!/usr/bin/env bash
 # 教師データの収集、ずれの追加収集、学習、閉ループ評価。
+# Python 3.6 / PyTorch 1.10.0 / CUDA 10.2〜11.3 向け（OSS バックボーン import 版）。
+# CUDA 11.3 の例: TORCH_WHEEL=torch==1.10.0+cu113 TORCH_FIND_LINKS=https://download.pytorch.org/whl/cu113/torch_stable.html
 set -euo pipefail
 cd "$(dirname "$0")/.."
-PY="${PYTHON:-python3.13}"
+PY="${PYTHON:-python3.6}"
 if [[ ! -x .venv/bin/python ]]; then
   "$PY" -m venv .venv
+  .venv/bin/pip install --upgrade "pip<22" "setuptools<60" wheel
+  TORCH_FIND_LINKS="${TORCH_FIND_LINKS:-https://download.pytorch.org/whl/cu102/torch_stable.html}"
+  TORCH_WHEEL="${TORCH_WHEEL:-torch==1.10.0+cu102}"
+  .venv/bin/pip install "$TORCH_WHEEL" -f "$TORCH_FIND_LINKS" || \
+    .venv/bin/pip install torch==1.10.0
   .venv/bin/pip install -r requirements.txt
 fi
 export PYTHONUNBUFFERED=1

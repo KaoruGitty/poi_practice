@@ -1,0 +1,7 @@
+{
+  "num_point": 4096,
+  "nblocks": 4,
+  "nneighbor": 16,
+  "transformer_dim": 512,
+  "pool": "mean"
+}
